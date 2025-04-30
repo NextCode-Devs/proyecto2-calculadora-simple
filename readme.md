@@ -8,4 +8,4 @@
 - Como usuario, quiero que los ingresos y gastos que registre se mantengan guardados aunque cierre o recargue la página, para no tener que ingresarlos de nuevo.
 - Como usuario, quiero ver un gráfico sencillo que me muestre lo que gano y lo que gasto.
 - Como usuario, quiero tener una herramienta de cálculo en la misma página donde llevo mis finanzas.
- -Como usuario, quiero ver un anuncie que me avise cuando estoy gastando de mas.
+-Como usuario, quiero ver un anuncie que me avise cuando estoy gastando de mas.
