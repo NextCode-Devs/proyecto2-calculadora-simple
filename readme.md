@@ -9,3 +9,6 @@
 - Como usuario, quiero ver un gráfico sencillo que me muestre lo que gano y lo que gasto.
 - Como usuario, quiero tener una herramienta de cálculo en la misma página donde llevo mis finanzas.
 -Como usuario, quiero ver un anuncie que me avise cuando estoy gastando de mas.
+-Como usuario, quiero tener unos cruadritos que lleven la cantidad de ingresos y egresos hasta el dia que es(que lo lleve todos los dias, acutalizacion constante)
+- Como usuario, quiero tener metas de ahorro 
+NO ME CARGA LA ACTUALIZACION
