@@ -1,4 +1,4 @@
-### Dificultad: 🦋 Facil 
+### Dificultad: 🦋 Facil
 
 - Como usuario, quiero ingresar mis ingresos mensuales para tener un registro de mi dinero disponible.
 - Como usuario, quiero ingresar mis gastos para controlar mis finanzas.
@@ -9,3 +9,4 @@
 - Como usuario, quiero ver un gráfico sencillo que me muestre lo que gano y lo que gasto, para entender mejor mi situación financiera.
 - Como usuario, quiero tener una herramienta de cálculo en la misma página donde llevo mis finanzas, para no tener que abrir otra app.
 - Como usuario, quiero ver una alerta que me avise cuando estoy gastando de mas.
+- Como usuario, quiero recibir una notificación si este mes gasto más que el mes anterior, para controlar mejor mis hábitos de consumo.
