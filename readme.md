@@ -10,3 +10,4 @@
 - Como usuario, quiero tener una herramienta de cálculo en la misma página donde llevo mis finanzas, para no tener que abrir otra app.
 - Como usuario, quiero ver una alerta que me avise cuando estoy gastando de mas.
 - Como usuario, quiero recibir una notificación si este mes gasto más que el mes anterior, para controlar mejor mis hábitos de consumo.
+- Como usuario, quiero que la interfaz sea intuitiva. 
