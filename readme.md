@@ -11,3 +11,5 @@
 - Como usuario, quiero ver una alerta que me avise cuando estoy gastando de mas.
 - Como usuario, quiero recibir una notificación si este mes gasto más que el mes anterior, para controlar mejor mis hábitos de consumo.
 - Como usuario, quiero que la interfaz sea intuitiva. 
+- Como usuario, quiero ver mis gastos clasificados para saber en qué estoy gastando.
+
