@@ -12,5 +12,5 @@
 - Como usuario, quiero recibir una notificación si este mes gasto más que el mes anterior, para controlar mejor mis hábitos de consumo.
 - Como usuario, quiero que la interfaz sea intuitiva. 
 - Como usuario, quiero ver mis gastos clasificados para saber en qué estoy gastando.
--Como usuario quiero iniciar sesión en el sistema para acceder a mi panel de control financiero de forma segura. 
-Como usuario, quiero ver un calendario mensual donde pueda visualizar los días en los que tengo pagos programados.
+- Como usuario quiero iniciar sesión en el sistema para acceder a mi panel de control financiero de forma segura. 
+- Como usuario, quiero ver un calendario mensual donde pueda visualizar los días en los que tengo pagos programados.
