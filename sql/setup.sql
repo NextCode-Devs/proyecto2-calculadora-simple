@@ -36,4 +36,4 @@ CREATE TABLE configuraciones (
 INSERT INTO configuraciones (clave, valor) VALUES 
 ('limite_gastos', '1000'),
 ('moneda', '$'),
-('aviso_gastos', '1');
+('aviso_gastos', '1'); --Agregar comentarios 
