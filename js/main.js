@@ -8,18 +8,18 @@ document.addEventListener('DOMContentLoaded', function() {
             bsAlert.close();
         }, 5000);
     });
-    
+
     // Validación de formulario adicional
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
             const monto = parseFloat(this.monto.value);
-            if (isNaN(monto) {
+            if (isNaN(monto)) {
                 e.preventDefault();
                 alert('El monto debe ser un número válido');
                 return false;
             }
-            
+
             if (!this.descripcion.value.trim()) {
                 e.preventDefault();
                 alert('La descripción es requerida');
@@ -29,3 +29,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+

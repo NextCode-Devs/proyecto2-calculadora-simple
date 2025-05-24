@@ -3,18 +3,35 @@ require_once __DIR__ . '/../config/conexion.php';
 
 class Finanzas {
     private $conn;
-    private $usuario_id = null; // Para futura implementación de usuarios
+    private $usuario_id;
 
-    public function __construct() {
+    public function __construct($usuario_id) {
         $this->conn = conectarDB();
+        $this->usuario_id = $usuario_id;
     }
+
+    // Aquí van tus otros métodos (agregarTransaccion, obtenerTransacciones, etc.)
+
+
 
     // Operaciones CRUD
-    public function agregarTransaccion($tipo, $monto, $descripcion, $nota = '') {
-        $stmt = $this->conn->prepare("INSERT INTO transacciones (usuario_id, tipo, monto, descripcion, nota) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("isdss", $this->usuario_id, $tipo, $monto, $descripcion, $nota);
-        return $stmt->execute();
+public function agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fecha_programada = null) {
+    $query = "INSERT INTO transacciones (tipo, monto, descripcion, usuario_id, categoria, fecha_programada) 
+              VALUES (?, ?, ?, ?, ?, ?)";
+
+    $stmt = $this->conn->prepare($query);
+    
+    if (!$stmt) {
+        die("Error en prepare: " . $this->conn->error);
     }
+
+    $stmt->bind_param("sdsiss", $tipo, $monto, $descripcion, $this->usuario_id, $categoria, $fecha_programada);
+
+    return $stmt->execute(); 
+}
+
+
+
 
     public function eliminarTransaccion($id) {
         $stmt = $this->conn->prepare("DELETE FROM transacciones WHERE id = ? AND (usuario_id IS NULL OR usuario_id = ?)");
@@ -23,23 +40,19 @@ class Finanzas {
     }
 
     public function obtenerTransacciones($tipo = null) {
-        $sql = "SELECT * FROM transacciones WHERE (usuario_id IS NULL OR usuario_id = ?)";
-        if ($tipo) {
-            $sql .= " AND tipo = ?";
-        }
-        $sql .= " ORDER BY fecha DESC";
-        
+    if ($tipo) {
+        $sql = "SELECT * FROM transacciones WHERE usuario_id = ? AND tipo = ? ORDER BY fecha DESC";
         $stmt = $this->conn->prepare($sql);
-        
-        if ($tipo) {
-            $stmt->bind_param("is", $this->usuario_id, $tipo);
-        } else {
-            $stmt->bind_param("i", $this->usuario_id);
-        }
-        
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->bind_param("is", $this->usuario_id, $tipo);
+    } else {
+        $sql = "SELECT * FROM transacciones WHERE usuario_id = ? ORDER BY fecha DESC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $this->usuario_id);
     }
+
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
 
     // Cálculos y reportes
     public function calcularBalance() {

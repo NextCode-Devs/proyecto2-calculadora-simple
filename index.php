@@ -1,24 +1,53 @@
 <?php
-require_once 'includes/funciones.php';
-require_once 'includes/header.php';
 
-$finanzas = new Finanzas();
+session_start();
+
+require_once __DIR__ . '/backend/includes/funciones.php';
+
+// Verifica si el usuario está logueado
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: procesar_login1.php');
+    exit;
+}
+
+$usuario_id = $_SESSION['usuario_id'];
+$finanzas = new Finanzas($usuario_id);
+
+if (isset($_GET['eliminar'])) {
+    $id = (int) $_GET['eliminar'];
+    if ($finanzas->eliminarTransaccion($id)) {
+        $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Transacción eliminada correctamente'];
+    } else {
+        $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'Error al eliminar transacción'];
+    }
+    header('Location: index.php');
+    exit;
+}
+
+/// ✅ Ahora ya puedes incluir el header
+require_once __DIR__ . '/backend/includes/header.php';
+
+$usuario_id = $_SESSION['usuario_id'];
+$finanzas = new Finanzas($usuario_id);
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tipo'])) {
     $tipo = sanitizar($_POST['tipo']);
+    $categoria = isset($_POST['categoria']) ? sanitizar($_POST['categoria']) : '';
     $monto = (float) $_POST['monto'];
     $descripcion = sanitizar($_POST['descripcion']);
-    $nota = sanitizar($_POST['nota'] ?? '');
-    
-    if (in_array($tipo, ['ingreso', 'gasto']) && $monto > 0 && !empty($descripcion)) {
-        if ($finanzas->agregarTransaccion($tipo, $monto, $descripcion, $nota)) {
+    $fecha_programada = isset($_POST['fecha_programada']) ? $_POST['fecha_programada'] : null;
+
+    if (in_array($tipo, ['ingreso', 'gasto', 'fecha_programada']) && $monto > 0 && !empty($descripcion)) {
+        if ($finanzas->agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fecha_programada)) {
             mostrarMensaje('success', 'Transacción agregada correctamente');
         } else {
             mostrarMensaje('danger', 'Error al agregar transacción');
         }
     }
 }
+
+
 
 // Eliminar transacción
 if (isset($_GET['eliminar'])) {
@@ -108,20 +137,33 @@ $mensaje = obtenerMensaje();
                         <select name="tipo" class="form-select" required>
                             <option value="ingreso">Ingreso</option>
                             <option value="gasto">Gasto</option>
+                             <option value="pago">Programar pagos</option>
+                         
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Categorias</label>
+                        <select name="categoria" class="form-select" required>
+                            <option value="sueldo">Sueldo</option>
+                            <option value="compras">Compras</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="estudios">Estudios</option>
+                            <option value="entretenimiento">Entretenimiento</option>                        </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Monto (<?= $moneda ?>)</label>
                         <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
                     </div>
+                    
                     <div class="col-md-3">
                         <label class="form-label">Descripción</label>
                         <input type="text" name="descripcion" class="form-control" required>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Nota (opcional)</label>
-                        <input type="text" name="nota" class="form-control">
-                    </div>
+                    <div class="mb-3">
+    <label for="fecha_programada" class="form-label">Fecha Programada</label>
+    <input type="date" name="fecha_programada" id="fecha_programada" class="form-control">
+</div>
+
                 </div>
                 <button type="submit" class="btn btn-primary mt-3">Agregar</button>
             </form>
@@ -140,9 +182,9 @@ $mensaje = obtenerMensaje();
                         <tr>
                             <th>Fecha</th>
                             <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Descripción</th>
                             <th>Monto</th>
-                            <th>Nota</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -151,9 +193,9 @@ $mensaje = obtenerMensaje();
                         <tr class="<?= $t['tipo'] === 'ingreso' ? 'table-success' : 'table-danger' ?>">
                             <td><?= date('d/m/Y H:i', strtotime($t['fecha'])) ?></td>
                             <td><?= ucfirst($t['tipo']) ?></td>
-                            <td><?= htmlspecialchars($t['descripcion']) ?></td>
+                            <td><?= ucfirst($t['categoria']) ?></td>
+                            <td><?= htmlspecialchars($t['descripcion']) ?></td>                          
                             <td><?= $moneda . number_format($t['monto'], 2) ?></td>
-                            <td><?= htmlspecialchars($t['nota']) ?></td>
                             <td>
                                 <a href="?eliminar=<?= $t['id'] ?>" class="btn btn-sm btn-danger" 
                                    onclick="return confirm('¿Eliminar esta transacción?')">Eliminar</a>
@@ -166,46 +208,12 @@ $mensaje = obtenerMensaje();
         </div>
     </div>
 
-    <!-- Calculadora -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Calculadora</h5>
-        </div>
-        <div class="card-body">
-            <div class="calculadora">
-                <input type="text" id="pantalla" class="form-control mb-2" disabled>
-                <div class="botones">
-                    <button type="button" class="btn btn-secondary" value="7">7</button>
-                    <button type="button" class="btn btn-secondary" value="8">8</button>
-                    <button type="button" class="btn btn-secondary" value="9">9</button>
-                    <button type="button" class="btn btn-warning operador" value="/">/</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="4">4</button>
-                    <button type="button" class="btn btn-secondary" value="5">5</button>
-                    <button type="button" class="btn btn-secondary" value="6">6</button>
-                    <button type="button" class="btn btn-warning operador" value="*">*</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="1">1</button>
-                    <button type="button" class="btn btn-secondary" value="2">2</button>
-                    <button type="button" class="btn btn-secondary" value="3">3</button>
-                    <button type="button" class="btn btn-warning operador" value="-">-</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="0">0</button>
-                    <button type="button" class="btn btn-secondary" value=".">.</button>
-                    <button type="button" class="btn btn-success igual" value="=">=</button>
-                    <button type="button" class="btn btn-warning operador" value="+">+</button>
-                    
-                    <button type="button" class="btn btn-danger limpiar" value="C">C</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/calculadora.js"></script>
-<script src="js/main.js"></script>
+<script src="frontend/js/calculadora.js"></script>
+<script src="frontend/js/main.js"></script>
 <script>
     // Gráfico de finanzas
     const ctx = document.getElementById('graficoFinanzas').getContext('2d');
@@ -237,4 +245,82 @@ $mensaje = obtenerMensaje();
     });
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
+
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+
+<!-- FullCalendar JS (esto es lo que te falta) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+
+<!-- Calendario de Pagos -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Calendario de Pagos Programados</h5>
+    </div>
+    <div class="card-body">
+        <div id="calendarioPagos" style="min-height: 500px;"></div>
+    </div>
+</div>
+<!-- Tu script donde usas FullCalendar -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendarioPagos');
+    if (!calendarEl) return;
+
+    var eventos = <?= json_encode(array_map(function($t) use ($moneda) {
+        // Determinar la fecha correcta a mostrar
+        $fechaMostrar = (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') 
+            ? $t['fecha_programada'] 
+            : $t['fecha'];
+        
+        // Determinar el color según el tipo
+        $color = (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') 
+            ? '#ffc107' // Amarillo para programados
+            : ($t['tipo'] === 'gasto' ? '#dc3545' : '#28a745');
+        
+        return [
+            'title' => $t['categoria'] . ': ' . $moneda . number_format($t['monto'], 2),
+            'start' => $fechaMostrar,
+            'color' => $color,
+            'extendedProps' => [
+                'descripcion' => $t['descripcion'],
+                'tipo' => $t['tipo'],
+                'programado' => (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00'),
+                'fechaProgramada' => $t['fecha_programada']
+            ]
+        ];
+    }, $transacciones), JSON_UNESCAPED_UNICODE) ?>;
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        events: eventos,
+        eventClick: function(info) {
+            var detalles = 'Detalles de la transacción:\n\n' +
+                          'Tipo: ' + (info.event.extendedProps.programado ? 'Pago Programado' : info.event.extendedProps.tipo) + '\n' +
+                          'Monto: ' + info.event.title.split(':')[1] + '\n' +
+                          'Descripción: ' + info.event.extendedProps.descripcion + '\n' +
+                          'Fecha: ' + info.event.start.toLocaleDateString();
+            
+            if (info.event.extendedProps.programado) {
+                var hoy = new Date().toISOString().split('T')[0];
+                var fechaEvento = info.event.start.toISOString().split('T')[0];
+                detalles += '\n\nEstado: ' + (fechaEvento < hoy ? 'Vencido' : 'Pendiente');
+            }
+            
+            alert(detalles);
+        }
+    });
+
+    calendar.render();
+});
+</script>
+
+
+
+
+<?php require_once 'backend/includes/footer.php'; ?>
