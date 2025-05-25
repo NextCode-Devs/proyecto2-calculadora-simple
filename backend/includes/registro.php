@@ -1,34 +1,49 @@
 <?php
-include_once('../config/conexion.php');
+require_once('../config/conexion.php');
 
-// Crear conexión
-$conn = conectarDB();
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nombre = sanitizar($_POST['nombre_usuario']);
+    $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+    $password = $_POST['password'];
 
-// Obtener datos del formulario
-$nombre = $_POST['nombre_usuario'];  // <-- CORREGIDO
-$email = $_POST['email'];
-$password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    if (empty($nombre) || empty($email) || empty($password)) {
+        die("Por favor completa todos los campos.");
+    }
 
-// Preparar la consulta
-$sql = "INSERT INTO usuarios (nombre_usuario, email, contraseña) VALUES (?, ?, ?)";  // <-- nombres reales de la BD
-$stmt = $conn->prepare($sql);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        die("El correo electrónico no es válido.");
+    }
 
-if ($stmt) {
-    $stmt->bind_param("sss", $nombre, $email, $password);
+    $conn = conectarDB();
+
+    $stmt = $conn->prepare("SELECT id FROM usuarios WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $stmt->store_result();
+
+    if ($stmt->num_rows > 0) {
+        $stmt->close();
+        $conn->close();
+        die("Este correo ya está registrado.");
+    }
+    $stmt->close();
+
+    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $conn->prepare("INSERT INTO usuarios (nombre_usuario, email, contraseña) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $nombre, $email, $password_hash);
 
     if ($stmt->execute()) {
-        $stmt->close();
-        $conn->close();
-        header("Location: ../../index.php");  // Redirige a la raíz si fue exitoso
+    header("Location: ../../frontend/html/iniciosesion.html");
         exit();
     } else {
-        $stmt->close();
-        $conn->close();
-        header("Location: ../../../frontend/html/iniciosesion.html");  // <-- Ruta corregida
-        exit();
+        echo "Error al registrar: " . $conn->error;
     }
+
+    $stmt->close();
+    $conn->close();
 } else {
-    echo "Error en la preparación de la consulta.";
+    echo "Acceso no permitido.";
 }
 ?>
 
