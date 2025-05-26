@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Agrega id en la consulta
     $stmt = $conn->prepare("SELECT id, nombre_usuario, email, contraseña FROM usuarios WHERE LOWER(email) = ?");
+    // Agrega id en la consulta
+    $stmt = $conn->prepare("SELECT id, nombre_usuario, email, contraseña FROM usuarios WHERE LOWER(email) = ?");
+    $stmt = $conn->prepare("SELECT email, contraseña FROM usuarios WHERE LOWER(email) = ?");
     if (!$stmt) {
         die('Error en la consulta.');
     }
@@ -34,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['usuario_nombre'] = $row['nombre_usuario'];
             $_SESSION['usuario_email'] = $row['email'];
 
+
+            $_SESSION['usuario_email'] = $row['email'];
             header("Location: ../../index.php");
             exit;
         } else {
