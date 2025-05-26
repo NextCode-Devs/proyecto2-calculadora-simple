@@ -79,16 +79,45 @@ public function agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fec
     }
 
     public function verificarAlertaGastos() {
-        $limite = (float) $this->obtenerConfiguracion('limite_gastos');
-        if (!$limite) return null;
-        
+    $mensajes = [];
+
+    // Alerta 1: Gastaste más que el mes pasado
+    $sql = "
+        SELECT gasto_mes_actual, diferencia, porcentaje_cambio, estado_limite
+        FROM vista_comparacion_mensual
+        WHERE usuario_id = ?
+        ORDER BY anio_actual DESC, mes_actual DESC
+        LIMIT 1
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    if (!$stmt) {
+        die("Error en prepare: " . $this->conn->error);
+    }
+
+    $stmt->bind_param("i", $this->usuario_id);
+    $stmt->execute();
+    $resultado = $stmt->get_result();
+    $fila = $resultado->fetch_assoc();
+
+    if ($fila && $fila['diferencia'] > 0) {
+        $mensajes[] = "⚠️ Este mes has gastado más que el anterior ({$fila['porcentaje_cambio']}% más). ¡Cuidado con tus finanzas!";
+    }
+
+    // Alerta 2: Superas límite de gastos configurado
+    $limite = (float) $this->obtenerConfiguracion('limite_gastos');
+    if ($limite) {
         $gastos = array_reduce($this->obtenerTransacciones('gasto'), fn($c, $g) => $c + $g['monto'], 0);
         $moneda = $this->obtenerConfiguracion('moneda') ?? '$';
-        
-        return $gastos > $limite ? 
-            "¡ALERTA! Gastos exceden el límite de {$moneda}{$limite}" : 
-            null;
+        if ($gastos > $limite) {
+            $mensajes[] = "🚨 Has excedido tu límite mensual de gastos de {$moneda}{$limite}.";
+        }
     }
+
+    return $mensajes ? implode(" ", $mensajes) : null;
+}
+
+
 
     // Para futura implementación de usuarios
     public function setUsuarioId($id) {

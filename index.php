@@ -4,28 +4,10 @@ session_start();
 
 require_once __DIR__ . '/backend/includes/funciones.php';
 
-// Verifica si el usuario está logueado
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: procesar_login1.php');
     exit;
 }
-
-$usuario_id = $_SESSION['usuario_id'];
-$finanzas = new Finanzas($usuario_id);
-
-if (isset($_GET['eliminar'])) {
-    $id = (int) $_GET['eliminar'];
-    if ($finanzas->eliminarTransaccion($id)) {
-        $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Transacción eliminada correctamente'];
-    } else {
-        $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'Error al eliminar transacción'];
-    }
-    header('Location: index.php');
-    exit;
-}
-
-/// ✅ Ahora ya puedes incluir el header
-require_once __DIR__ . '/backend/includes/header.php';
 
 $usuario_id = $_SESSION['usuario_id'];
 $finanzas = new Finanzas($usuario_id);
@@ -38,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tipo'])) {
     $descripcion = sanitizar($_POST['descripcion']);
     $fecha_programada = isset($_POST['fecha_programada']) ? $_POST['fecha_programada'] : null;
 
-    if (in_array($tipo, ['ingreso', 'gasto', 'fecha_programada']) && $monto > 0 && !empty($descripcion)) {
+    if (in_array($tipo, ['ingreso', 'gasto', 'pago']) && $monto > 0 && !empty($descripcion)) {
         if ($finanzas->agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fecha_programada)) {
             mostrarMensaje('success', 'Transacción agregada correctamente');
         } else {
@@ -46,8 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tipo'])) {
         }
     }
 }
-
-
 
 // Eliminar transacción
 if (isset($_GET['eliminar'])) {
@@ -61,25 +41,60 @@ if (isset($_GET['eliminar'])) {
     exit;
 }
 
+// Datos financieros
 $balance = $finanzas->calcularBalance();
 $moneda = $finanzas->obtenerConfiguracion('moneda') ?? '$';
 $alerta = $finanzas->verificarAlertaGastos();
 $transacciones = $finanzas->obtenerTransacciones();
 $mensaje = obtenerMensaje();
+
+// Notificaciones de pagos programados
+$notificacionesPagos = [];
+
+foreach ($transacciones as $t) {
+    if (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') {
+        $fechaPago = new DateTime($t['fecha_programada']);
+        $hoy = new DateTime();
+        $maniana = (clone $hoy)->modify('+1 day');
+
+        if ($fechaPago->format('Y-m-d') === $hoy->format('Y-m-d')) {
+            $notificacionesPagos[] = "Hoy vence el pago de <strong>{$t['categoria']}</strong> por {$moneda}" . number_format($t['monto'], 2);
+        }
+
+        if ($fechaPago->format('Y-m-d') === $maniana->format('Y-m-d')) {
+            $notificacionesPagos[] = "Mañana vence el pago de <strong>{$t['categoria']}</strong> por {$moneda}" . number_format($t['monto'], 2);
+        }
+
+       
+    }
+}
+
+require_once __DIR__ . '/backend/includes/header.php';
 ?>
 
 <div class="container mt-4">
-    <!-- Alertas -->
+
     <?php if ($alerta): ?>
     <div class="alert alert-warning alert-dismissible fade show">
         <?= $alerta ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
-    
+
     <?php if ($mensaje): ?>
     <div class="alert alert-<?= $mensaje['tipo'] ?> alert-dismissible fade show">
         <?= $mensaje['texto'] ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($notificacionesPagos)): ?>
+    <div class="alert alert-info alert-dismissible fade show">
+        <ul class="mb-0">
+            <?php foreach ($notificacionesPagos as $n): ?>
+                <li><?= $n ?></li>
+            <?php endforeach; ?>
+        </ul>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
@@ -190,19 +205,24 @@ $mensaje = obtenerMensaje();
                     </thead>
                     <tbody>
                         <?php foreach ($transacciones as $t): ?>
-                        <tr class="<?= $t['tipo'] === 'ingreso' ? 'table-success' : 'table-danger' ?>">
-                            <td><?= date('d/m/Y H:i', strtotime($t['fecha'])) ?></td>
-                            <td><?= ucfirst($t['tipo']) ?></td>
+                        <tr class="<?php
+                            if ($t['tipo'] === 'ingreso') echo 'table-success';
+                            elseif ($t['tipo'] === 'gasto') echo 'table-danger';
+                            elseif ($t['tipo'] === 'pago') echo 'table-warning';
+                        ?>">
+                            <td><?= !empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00' ? $t['fecha_programada'] : $t['fecha'] ?></td>
+                            <td><?= $t['tipo'] === 'pago' ? 'Pago Programado' : ucfirst($t['tipo']) ?></td>
                             <td><?= ucfirst($t['categoria']) ?></td>
                             <td><?= htmlspecialchars($t['descripcion']) ?></td>                          
                             <td><?= $moneda . number_format($t['monto'], 2) ?></td>
                             <td>
                                 <a href="?eliminar=<?= $t['id'] ?>" class="btn btn-sm btn-danger" 
-                                   onclick="return confirm('¿Eliminar esta transacción?')">Eliminar</a>
+                                onclick="return confirm('¿Eliminar esta transacción?')">Eliminar</a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
-                    </tbody>
+                        </tbody>
+
                 </table>
             </div>
         </div>
