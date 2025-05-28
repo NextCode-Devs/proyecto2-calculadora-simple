@@ -83,12 +83,13 @@ public function agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fec
 
     // Alerta 1: Gastaste más que el mes pasado
     $sql = "
-        SELECT gasto_mes_actual, diferencia, porcentaje_cambio, estado_limite
-        FROM vista_comparacion_mensual
-        WHERE usuario_id = ?
-        ORDER BY anio_actual DESC, mes_actual DESC
-        LIMIT 1
-    ";
+    SELECT gasto_mes_actual, gasto_mes_anterior, diferencia, porcentaje_cambio
+    FROM vista_comparacion_mensual
+    WHERE usuario_id = ?
+    ORDER BY anio_actual DESC, mes_actual DESC
+    LIMIT 1
+";
+
 
     $stmt = $this->conn->prepare($sql);
     if (!$stmt) {
@@ -100,8 +101,12 @@ public function agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fec
     $resultado = $stmt->get_result();
     $fila = $resultado->fetch_assoc();
 
-    if ($fila && $fila['diferencia'] > 0) {
-        $mensajes[] = "⚠️ Este mes has gastado más que el anterior ({$fila['porcentaje_cambio']}% más). ¡Cuidado con tus finanzas!";
+    if ($fila) {
+        if ($fila['gasto_mes_anterior'] !== null && $fila['diferencia'] > 0) {
+            $mensajes[] = " Este mes has gastado más que el anterior ({$fila['porcentaje_cambio']}% más). ¡Cuidado con tus finanzas!";
+        } elseif ($fila['gasto_mes_anterior'] === null) {
+            $mensajes[] = " Aún no hay datos del mes anterior para comparar tus gastos.";
+        }
     }
 
     // Alerta 2: Superas límite de gastos configurado
@@ -110,12 +115,13 @@ public function agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fec
         $gastos = array_reduce($this->obtenerTransacciones('gasto'), fn($c, $g) => $c + $g['monto'], 0);
         $moneda = $this->obtenerConfiguracion('moneda') ?? '$';
         if ($gastos > $limite) {
-            $mensajes[] = "🚨 Has excedido tu límite mensual de gastos de {$moneda}{$limite}.";
+            $mensajes[] = " Has excedido tu límite mensual de gastos de {$moneda}{$limite}.";
         }
     }
 
     return $mensajes ? implode(" ", $mensajes) : null;
 }
+
 
 
 
