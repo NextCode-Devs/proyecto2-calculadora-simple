@@ -1,0 +1,73 @@
+/* Estilos para el footer - coherentes con el header */
+.footer-custom {
+    background-color: #1a7cdf; /* Mismo color que el navbar */
+    color: white;
+    padding: 2rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-brand {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+}
+
+.footer-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.footer-nav {
+    margin-bottom: 1rem;
+}
+
+.footer-link {
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.3s ease;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.footer-link:hover {
+    color: white;
+    text-decoration: none;
+}
+
+.footer-link.logout-btn:hover {
+    color: #f8f9fa;
+}
+
+.footer-copyright {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+}
+
+/* Asegurar que los botones se vean como enlaces en el footer */
+.footer-link.logout-btn {
+    cursor: pointer;
+    font-size: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .footer-custom {
+        text-align: center;
+    }
+    
+    .footer-nav {
+        justify-content: center;
+    }
+    
+    .text-md-end {
+        text-align: center !important;
+    }
+    
+    .footer-brand {
+        justify-content: center;
+    }
+
+
+
+}

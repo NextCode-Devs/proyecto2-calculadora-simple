@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             const monto = parseFloat(this.monto.value);
-            if (isNaN(monto) {
+            if (isNaN(monto)) {
                 e.preventDefault();
                 alert('El monto debe ser un número válido');
                 return false;

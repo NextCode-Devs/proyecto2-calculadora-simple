@@ -1,22 +1,28 @@
 <?php
-require_once 'includes/funciones.php';
-require_once 'includes/header.php';
 
-$finanzas = new Finanzas();
+session_start();
+
+require_once __DIR__ . '/backend/includes/funciones.php';
+
+
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: frontend/html/iniciosesion.html');
+    exit;
+}
+
+$usuario_id = $_SESSION['usuario_id'];
+$finanzas = new Finanzas($usuario_id);
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tipo'])) {
     $tipo = sanitizar($_POST['tipo']);
+    $categoria = isset($_POST['categoria']) ? sanitizar($_POST['categoria']) : '';
     $monto = (float) $_POST['monto'];
     $descripcion = sanitizar($_POST['descripcion']);
-    $nota = sanitizar($_POST['nota'] ?? '');
-    
-    if (in_array($tipo, ['ingreso', 'gasto']) && $monto > 0 && !empty($descripcion)) {
-        if ($finanzas->agregarTransaccion($tipo, $monto, $descripcion, $nota)) {
-            mostrarMensaje('success', 'Transacción agregada correctamente');
-        } else {
-            mostrarMensaje('danger', 'Error al agregar transacción');
-        }
+    $fecha_programada = !empty($_POST['fecha_programada']) ? $_POST['fecha_programada'] : null;
+
+    if ($tipo === 'pago' && empty($fecha_programada)) {
+        $fecha_programada = date('Y-m-d');
     }
 }
 
@@ -32,106 +38,166 @@ if (isset($_GET['eliminar'])) {
     exit;
 }
 
+// Datos financieros
 $balance = $finanzas->calcularBalance();
 $moneda = $finanzas->obtenerConfiguracion('moneda') ?? '$';
 $alerta = $finanzas->verificarAlertaGastos();
 $transacciones = $finanzas->obtenerTransacciones();
 $mensaje = obtenerMensaje();
+
+// Notificaciones de pagos programados
+$notificacionesPagos = [];
+foreach ($transacciones as $t) {
+    if (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') {
+        $fechaPago = new DateTime($t['fecha_programada']);
+        $hoy = new DateTime();
+        $maniana = (clone $hoy)->modify('+1 day');
+
+        if ($fechaPago->format('Y-m-d') === $hoy->format('Y-m-d')) {
+            $notificacionesPagos[] = "Hoy vence el pago de <strong>{$t['categoria']}</strong> por {$moneda}" . number_format($t['monto'], 2);
+        }
+
+        if ($fechaPago->format('Y-m-d') === $maniana->format('Y-m-d')) {
+            $notificacionesPagos[] = "Mañana vence el pago de <strong>{$t['categoria']}</strong> por {$moneda}" . number_format($t['monto'], 2);
+        }
+    }
+}
+
+require_once __DIR__ . '/backend/includes/header.php';
 ?>
 
+
 <div class="container mt-4">
+
+
     <!-- Alertas -->
     <?php if ($alerta): ?>
-    <div class="alert alert-warning alert-dismissible fade show">
-        <?= $alerta ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+        <div class="alert alert-warning alert-dismissible fade show">
+            <?= $alerta ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     <?php endif; ?>
-    
+
     <?php if ($mensaje): ?>
-    <div class="alert alert-<?= $mensaje['tipo'] ?> alert-dismissible fade show">
-        <?= $mensaje['texto'] ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+        <div class="alert alert-<?= $mensaje['tipo'] ?> alert-dismissible fade show">
+            <?= $mensaje['texto'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     <?php endif; ?>
 
-    <h1 class="text-center mb-4">Finanzas Personales</h1>
+    <?php if (!empty($notificacionesPagos)): ?>
+        <div class="alert alert-info alert-dismissible fade show">
+            <ul class="mb-0">
+                <?php foreach ($notificacionesPagos as $n): ?>
+                    <li><?= $n ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
 
-    <!-- Resumen Financiero -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <h5 class="card-title">Ingresos</h5>
-                    <p class="card-text display-6"><?= $moneda . number_format($balance['ingresos'], 2) ?></p>
-                </div>
+
+  <!-- Resumen Financiero -->
+<div class="row mb-4">
+    <!-- Columna de Resumen (Ingresos, Gastos, Balance) -->
+    <div class="col-md-5">
+        <!-- Ingresos -->
+        <div class="card text-white bg-success border-0 shadow-sm mb-3">
+            <div class="card-body p-3">
+                <h5 class="card-title mb-0 d-flex align-items-center">
+                    Ingresos
+                    <i class="fas fa-arrow-up fa-sm ms-2 opacity-75"></i>
+                </h5>
+                <p class="card-text display-6 mb-0 fw-bold"><?= $moneda . number_format($balance['ingresos'], 2) ?></p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-white bg-danger">
-                <div class="card-body">
-                    <h5 class="card-title">Gastos</h5>
-                    <p class="card-text display-6"><?= $moneda . number_format($balance['gastos'], 2) ?></p>
-                </div>
+
+        <!-- Gastos -->
+        <div class="card text-white bg-danger border-0 shadow-sm mb-3">
+            <div class="card-body p-3">
+                <h5 class="card-title mb-0 d-flex align-items-center">
+                    Gastos
+                    <i class="fas fa-arrow-down fa-sm ms-2 opacity-75"></i>
+                </h5>
+                <p class="card-text display-6 mb-0 fw-bold"><?= $moneda . number_format($balance['gastos'], 2) ?></p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card <?= $balance['balance'] >= 0 ? 'bg-primary' : 'bg-warning' ?>">
-                <div class="card-body">
-                    <h5 class="card-title">Balance</h5>
-                    <p class="card-text display-6"><?= $moneda . number_format($balance['balance'], 2) ?></p>
-                </div>
+
+        <!-- Balance -->
+        <div class="card border-0 shadow-sm <?= $balance['balance'] >= 0 ? 'bg-primary text-white' : 'bg-warning text-dark' ?>">
+            <div class="card-body p-3">
+                <h5 class="card-title mb-0 d-flex align-items-center">
+                    Balance
+                    <i class="fas fa-balance-scale fa-sm ms-2 opacity-75"></i>
+                </h5>
+                <p class="card-text display-6 mb-0 fw-bold"><?= $moneda . number_format($balance['balance'], 2) ?></p>
             </div>
         </div>
     </div>
 
-    <!-- Gráfico -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>Resumen Mensual</h5>
-        </div>
-        <div class="card-body">
-            <canvas id="graficoFinanzas"></canvas>
+    <!-- Columna para el gráfico -->
+    <div class="col-md-7">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header border-0">
+                <h5 class="mb-0">Resumen</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="graficoFinanzas" height="160"></canvas>
+            </div>
         </div>
     </div>
+</div>
 
     <!-- Formulario de Transacciones -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>Agregar Transacción</h5>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                <div class="row">
-                    <div class="col-md-3">
-                        <label class="form-label">Tipo</label>
-                        <select name="tipo" class="form-select" required>
-                            <option value="ingreso">Ingreso</option>
-                            <option value="gasto">Gasto</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Monto (<?= $moneda ?>)</label>
-                        <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Descripción</label>
-                        <input type="text" name="descripcion" class="form-control" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Nota (opcional)</label>
-                        <input type="text" name="nota" class="form-control">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary mt-3">Agregar</button>
-            </form>
-        </div>
+ <div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">AGREGAR TRANSACCIÓN</h5>
     </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tipo</label>
+                    <select name="tipo" class="form-select" required>
+                        <option value="ingreso">Ingreso</option>
+                        <option value="gasto">Gasto</option>
+                        <option value="pago">Programar pagos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Categoría</label>
+                    <select name="categoria" class="form-select" required>
+                        <option value="sueldo">Sueldo</option>
+                        <option value="compras">Compras</option>
+                        <option value="transporte">Transporte</option>
+                        <option value="estudios">Estudios</option>
+                        <option value="entretenimiento">Entretenimiento</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Monto (<?= $moneda ?>)</label>
+                    <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Descripción</label>
+                    <input type="text" name="descripcion" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fecha Programada</label>
+                    <input type="date" name="fecha_programada" class="form-control">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">Agregar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
     <!-- Historial de Transacciones -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5>Historial de Transacciones</h5>
+            <h5>HISTORIAL DE TRANSACCIONES</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -140,72 +206,43 @@ $mensaje = obtenerMensaje();
                         <tr>
                             <th>Fecha</th>
                             <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Descripción</th>
                             <th>Monto</th>
-                            <th>Nota</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($transacciones as $t): ?>
-                        <tr class="<?= $t['tipo'] === 'ingreso' ? 'table-success' : 'table-danger' ?>">
-                            <td><?= date('d/m/Y H:i', strtotime($t['fecha'])) ?></td>
-                            <td><?= ucfirst($t['tipo']) ?></td>
-                            <td><?= htmlspecialchars($t['descripcion']) ?></td>
+                        <tr class="<?php
+                            if ($t['tipo'] === 'ingreso') echo 'table-success';
+                            elseif ($t['tipo'] === 'gasto') echo 'table-danger';
+                            elseif ($t['tipo'] === 'pago') echo 'table-warning';
+                        ?>">
+                            <td><?= !empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00' ? $t['fecha_programada'] : $t['fecha'] ?></td>
+                            <td><?= $t['tipo'] === 'pago' ? 'Pago Programado' : ucfirst($t['tipo']) ?></td>
+                            <td><?= ucfirst($t['categoria']) ?></td>
+                            <td><?= htmlspecialchars($t['descripcion']) ?></td>                          
                             <td><?= $moneda . number_format($t['monto'], 2) ?></td>
-                            <td><?= htmlspecialchars($t['nota']) ?></td>
                             <td>
                                 <a href="?eliminar=<?= $t['id'] ?>" class="btn btn-sm btn-danger" 
-                                   onclick="return confirm('¿Eliminar esta transacción?')">Eliminar</a>
+                                onclick="return confirm('¿Eliminar esta transacción?')">Eliminar</a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
-                    </tbody>
+                        </tbody>
+
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Calculadora -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Calculadora</h5>
-        </div>
-        <div class="card-body">
-            <div class="calculadora">
-                <input type="text" id="pantalla" class="form-control mb-2" disabled>
-                <div class="botones">
-                    <button type="button" class="btn btn-secondary" value="7">7</button>
-                    <button type="button" class="btn btn-secondary" value="8">8</button>
-                    <button type="button" class="btn btn-secondary" value="9">9</button>
-                    <button type="button" class="btn btn-warning operador" value="/">/</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="4">4</button>
-                    <button type="button" class="btn btn-secondary" value="5">5</button>
-                    <button type="button" class="btn btn-secondary" value="6">6</button>
-                    <button type="button" class="btn btn-warning operador" value="*">*</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="1">1</button>
-                    <button type="button" class="btn btn-secondary" value="2">2</button>
-                    <button type="button" class="btn btn-secondary" value="3">3</button>
-                    <button type="button" class="btn btn-warning operador" value="-">-</button>
-                    
-                    <button type="button" class="btn btn-secondary" value="0">0</button>
-                    <button type="button" class="btn btn-secondary" value=".">.</button>
-                    <button type="button" class="btn btn-success igual" value="=">=</button>
-                    <button type="button" class="btn btn-warning operador" value="+">+</button>
-                    
-                    <button type="button" class="btn btn-danger limpiar" value="C">C</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/calculadora.js"></script>
-<script src="js/main.js"></script>
+<script src="frontend/js/calculadora.js"></script>
+<script src="frontend/js/main.js"></script>
 <script>
     // Gráfico de finanzas
     const ctx = document.getElementById('graficoFinanzas').getContext('2d');
@@ -237,4 +274,80 @@ $mensaje = obtenerMensaje();
     });
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+
+<!-- FullCalendar JS (esto es lo que te falta) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+
+<!-- Calendario de Pagos -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>CALENDARIO DE PAGOS PROGRAMADOS</h5>
+    </div>
+    <div class="card-body">
+        <div id="calendarioPagos" style="min-height: 500px;"></div>
+    </div>
+</div>
+<!-- Tu script donde usas FullCalendar -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendarioPagos');
+    if (!calendarEl) return;
+
+    var eventos = <?= json_encode(array_map(function($t) use ($moneda) {
+        // Determinar la fecha correcta a mostrar
+        $fechaMostrar = (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') 
+            ? $t['fecha_programada'] 
+            : $t['fecha'];
+        
+        // Determinar el color según el tipo
+        $color = (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') 
+            ? '#ffc107' // Amarillo para programados
+            : ($t['tipo'] === 'gasto' ? '#dc3545' : '#28a745');
+        
+        return [
+            'title' => $t['categoria'] . ': ' . $moneda . number_format($t['monto'], 2),
+            'start' => $fechaMostrar,
+            'color' => $color,
+            'extendedProps' => [
+                'descripcion' => $t['descripcion'],
+                'tipo' => $t['tipo'],
+                'programado' => (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00'),
+                'fechaProgramada' => $t['fecha_programada']
+            ]
+        ];
+    }, $transacciones), JSON_UNESCAPED_UNICODE) ?>;
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        events: eventos,
+        eventClick: function(info) {
+            var detalles = 'Detalles de la transacción:\n\n' +
+                          'Tipo: ' + (info.event.extendedProps.programado ? 'Pago Programado' : info.event.extendedProps.tipo) + '\n' +
+                          'Monto: ' + info.event.title.split(':')[1] + '\n' +
+                          'Descripción: ' + info.event.extendedProps.descripcion + '\n' +
+                          'Fecha: ' + info.event.start.toLocaleDateString();
+            
+            if (info.event.extendedProps.programado) {
+                var hoy = new Date().toISOString().split('T')[0];
+                var fechaEvento = info.event.start.toISOString().split('T')[0];
+                detalles += '\n\nEstado: ' + (fechaEvento < hoy ? 'Vencido' : 'Pendiente');
+            }
+            
+            alert(detalles);
+        }
+    });
+
+    calendar.render();
+});
+</script>
+
+
+
+
+<?php require_once 'backend/includes/footer.php'; ?>
