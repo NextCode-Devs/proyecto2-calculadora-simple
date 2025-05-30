@@ -4,9 +4,8 @@ session_start();
 
 require_once __DIR__ . '/backend/includes/funciones.php';
 
-
 if (!isset($_SESSION['usuario_id'])) {
-    header('Location: frontend/html/iniciosesion.html');
+    header('Location: ../../frontend/html/iniciosesion.html');
     exit;
 }
 
@@ -21,8 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tipo'])) {
     $descripcion = sanitizar($_POST['descripcion']);
     $fecha_programada = !empty($_POST['fecha_programada']) ? $_POST['fecha_programada'] : null;
 
-    if ($tipo === 'pago' && empty($fecha_programada)) {
-        $fecha_programada = date('Y-m-d');
+// Si el tipo es "pago" y no se ingresó fecha, asignar la fecha de hoy
+if ($tipo === 'pago' && empty($fecha_programada)) {
+    $fecha_programada = date('Y-m-d');
+}
+
+
+    if (in_array($tipo, ['ingreso', 'gasto', 'pago']) && $monto > 0 && !empty($descripcion)) {
+        if ($finanzas->agregarTransaccion($tipo, $monto, $descripcion, $categoria, $fecha_programada)) {
+            mostrarMensaje('success', 'Transacción agregada correctamente');
+        } else {
+            mostrarMensaje('danger', 'Error al agregar transacción');
+        }
     }
 }
 
@@ -47,6 +56,7 @@ $mensaje = obtenerMensaje();
 
 // Notificaciones de pagos programados
 $notificacionesPagos = [];
+
 foreach ($transacciones as $t) {
     if (!empty($t['fecha_programada']) && $t['fecha_programada'] != '0000-00-00') {
         $fechaPago = new DateTime($t['fecha_programada']);
@@ -60,44 +70,42 @@ foreach ($transacciones as $t) {
         if ($fechaPago->format('Y-m-d') === $maniana->format('Y-m-d')) {
             $notificacionesPagos[] = "Mañana vence el pago de <strong>{$t['categoria']}</strong> por {$moneda}" . number_format($t['monto'], 2);
         }
+
+       
     }
 }
 
 require_once __DIR__ . '/backend/includes/header.php';
 ?>
 
-
 <div class="container mt-4">
 
-
-    <!-- Alertas -->
     <?php if ($alerta): ?>
-        <div class="alert alert-warning alert-dismissible fade show">
-            <?= $alerta ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <div class="alert alert-warning alert-dismissible fade show">
+        <?= $alerta ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
     <?php endif; ?>
 
     <?php if ($mensaje): ?>
-        <div class="alert alert-<?= $mensaje['tipo'] ?> alert-dismissible fade show">
-            <?= $mensaje['texto'] ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <div class="alert alert-<?= $mensaje['tipo'] ?> alert-dismissible fade show">
+        <?= $mensaje['texto'] ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
     <?php endif; ?>
 
     <?php if (!empty($notificacionesPagos)): ?>
-        <div class="alert alert-info alert-dismissible fade show">
-            <ul class="mb-0">
-                <?php foreach ($notificacionesPagos as $n): ?>
-                    <li><?= $n ?></li>
-                <?php endforeach; ?>
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <div class="alert alert-info alert-dismissible fade show">
+        <ul class="mb-0">
+            <?php foreach ($notificacionesPagos as $n): ?>
+                <li><?= $n ?></li>
+            <?php endforeach; ?>
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
     <?php endif; ?>
 
-
-  <!-- Resumen Financiero -->
+      <!-- Resumen Financiero -->
 <div class="row mb-4">
     <!-- Columna de Resumen (Ingresos, Gastos, Balance) -->
     <div class="col-md-5">
@@ -139,7 +147,7 @@ require_once __DIR__ . '/backend/includes/header.php';
     <div class="col-md-7">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-header border-0">
-                <h5 class="mb-0">Resumen</h5>
+                <h5 class="mb-0">Resumen Mensual</h5>
             </div>
             <div class="card-body">
                 <canvas id="graficoFinanzas" height="160"></canvas>
@@ -147,7 +155,6 @@ require_once __DIR__ . '/backend/includes/header.php';
         </div>
     </div>
 </div>
-
     <!-- Formulario de Transacciones -->
  <div class="card mb-4">
     <div class="card-header">
@@ -212,7 +219,7 @@ require_once __DIR__ . '/backend/includes/header.php';
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                          <tbody>
                         <?php foreach ($transacciones as $t): ?>
                         <tr class="<?php
                             if ($t['tipo'] === 'ingreso') echo 'table-success';
@@ -237,8 +244,8 @@ require_once __DIR__ . '/backend/includes/header.php';
         </div>
     </div>
 
-<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="frontend/js/calculadora.js"></script>
@@ -274,6 +281,8 @@ require_once __DIR__ . '/backend/includes/header.php';
     });
 </script>
 
+
+
 <!-- FullCalendar CSS -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
 
@@ -286,7 +295,7 @@ require_once __DIR__ . '/backend/includes/header.php';
 <!-- Calendario de Pagos -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5>CALENDARIO DE PAGOS PROGRAMADOS</h5>
+        <h5>Calendario de Pagos Programados</h5>
     </div>
     <div class="card-body">
         <div id="calendarioPagos" style="min-height: 500px;"></div>
