@@ -28,11 +28,12 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `configuraciones` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `usuario_id` int(11) DEFAULT NULL COMMENT 'NULL = configuración global',
   `clave` varchar(50) NOT NULL,
   `valor` decimal(10,2) NOT NULL,
-  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -50,14 +51,15 @@ INSERT INTO `configuraciones` (`id`, `usuario_id`, `clave`, `valor`, `actualizad
 --
 
 CREATE TABLE `transacciones` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `usuario_id` int(11) NOT NULL,
   `tipo` enum('ingreso','gasto','pago') NOT NULL,
   `monto` decimal(10,2) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `fecha` date NOT NULL DEFAULT curdate(),
   `categoria` varchar(50) DEFAULT 'otros',
-  `fecha_programada` date DEFAULT NULL
+  `fecha_programada` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
