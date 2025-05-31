@@ -5,7 +5,7 @@ session_start();
 require_once __DIR__ . '/backend/includes/funciones.php';
 
 if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ../../frontend/html/iniciosesion.html');
+    header('Location: frontend/html/iniciosesion.html');
     exit;
 }
 
